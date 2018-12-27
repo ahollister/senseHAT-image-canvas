@@ -1,0 +1,96 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Draw SenseHAT Image</title>
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+
+	<style>
+		#app .pixel-container {
+			width: 128px;
+			font-size: 0;
+		}
+		#app .pixel {
+			outline: 2px solid #ffffff;
+			width: 16px;
+			height: 16px;
+			background: #ddd;
+			display: inline-block;
+		}
+
+		#app input {
+			padding: 5px;
+			margin: 0 0 20px 0;
+		}
+
+		pre {
+			margin-top: 20px;
+			max-width: 500px;
+			white-space: initial;
+			display: block;
+			background: #ddd;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="app">
+		<h1>SenseHAT image canvas</h1>
+		
+		<p>Enter some RGB values to draw with:</p>
+		<input class="jscolor {onFineChange:'update(this)'}" value="000000">
+		<input type="hidden" id="rgb" value="0, 0, 0">
+		
+		<p>Use the grid below to create an image for SenseHAT pixels:</p>
+	</div>
+	<pre id="pixel-data"></pre>
+
+	<script src="./jscolor.js"></script>
+  	<script>
+		var app = document.getElementById("app");
+		var container = document.createElement("DIV");
+		var input = document.getElementById("rgb");
+		var pre = document.getElementById("pixel-data");
+
+                container.className = "pixel-container";
+		app.appendChild(container);
+		app.setAttribute("data-pixelData", JSON.stringify({
+			"pixels": []
+		}));
+
+		for (var i=0; i<64; i++) {
+			var newPixel = document.createElement("DIV");
+			newPixel.className = "pixel";
+			newPixel.setAttribute("data-index", i);
+			container.appendChild(newPixel);
+
+			var updatedPixels = JSON.parse(app.getAttribute("data-pixelData")).pixels;
+			updatedPixels.push("(0,0,0)");
+			app.setAttribute("data-pixelData", JSON.stringify({
+				"pixels": updatedPixels
+			}));
+
+			newPixel.onclick = function (e) {
+				e.target.style.background = "rgb(" + input.value + ")";
+				var pixelData = JSON.parse(app.getAttribute("data-pixelData"));
+				pixelData.pixels[e.target.getAttribute("data-index")] = "(" + input.value + ")";
+				
+				app.setAttribute("data-pixelData", JSON.stringify(pixelData));
+
+				pre.innerHTML = JSON.stringify(JSON.parse(app.getAttribute("data-pixelData")).pixels).replace(/"/g, '');
+			}
+		}
+		
+		pre.innerHTML = JSON.stringify(JSON.parse(app.getAttribute("data-pixelData")).pixels).replace(/"/g, '');
+
+		function update(picker) {
+    			input.value =
+        			Math.round(picker.rgb[0]) + ', ' +
+        			Math.round(picker.rgb[1]) + ', ' +
+        			Math.round(picker.rgb[2]);
+		}
+
+	</script>
+</body>
+</html>
