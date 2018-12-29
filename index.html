@@ -1,0 +1,178 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Draw SenseHAT Image</title>
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+
+	<style>
+		body {
+			padding-bottom: 5em;
+		}
+
+		.container {
+			max-width: 500px;
+		} 
+		
+		h1 {
+			text-align: center;
+			text-transform: capitalize;
+			padding: 1em 0 0.3em 0;
+			border-bottom: 1px solid #ddd;
+		}
+
+		h2 {
+			font-size: 1.25em;
+			font-size: 20px;
+			margin: 2em 0 1em 0;
+		}
+
+		.pixel-container {
+			width: 128px;
+			margin: 0 auto;
+			font-size: 0;
+		}
+		
+		.pixel {
+			border: none;
+			outline: 3px solid #ffffff;
+			width: 16px;
+			height: 16px;
+			background: #000000;
+			display: inline-block;
+		}
+
+		.pixel:focus {
+			outline: 3px solid lightgreen !important;
+		}
+		
+		.color-picker {
+			padding: 5px;
+			margin: 0 auto;
+			display: block;
+			border: none;
+			border-radius: 4px;
+		}
+
+		.sense-devicetype label {
+			margin-right: 2em;
+		}
+
+		.pixel-data {
+			width: 100%;
+			white-space: initial;
+			display: block;
+			padding: 1em 0.5em 0 1em;
+			background: #f8f8f8;
+			border: 1px solid #dddddd;
+			border-radius: 4px;
+		}
+	</style>
+</head>
+
+<body>
+	<header>
+		<div class="container">
+			<h1>SenseHAT image canvas</h1>
+		</div>
+	</header>
+	<main class="container">
+		<div id="js-app">
+			<h2>Click here to choose colors:</h2>
+			<input class="color-picker jscolor {onFineChange:'updateColorPicker(this)'}" value="000000">
+			<input id="js-rgb" type="hidden" value="0,0,0">
+
+			<h2>Click on the pixels below to draw your image:</h2>
+			<div id="js-pixel-container" class="pixel-container"></div>
+			
+			<h2>Are you using a real SenseHAT device, or an emulator?</h2>
+			<div id="js-sense-devicetype" class="sense-devicetype">
+				<input type="radio" id="senseHat-emulator" name="senseHat" value="senseHat-emulator" checked>
+				<label for="senseHat-emulator">Emulator</label>
+				<input type="radio" id="senseHat-device" name="senseHat" value="senseHat-device">
+				<label for="senseHat-device">Real Device</label>
+			</div>
+
+			<h2>Copy this code into a new .py file, and run the script with your SenseHAT plugged in or the emulator running:</h2>
+			<textarea id="js-pixel-data" rows="12"  class="pixel-data"></textarea>
+		</div>
+	</main>
+	<script src="./jscolor.js"></script>
+  	<script>
+	window.onload = function() {
+		var app = document.getElementById("js-app");
+		var container = document.getElementById("js-pixel-container");
+		var inputRGB = document.getElementById("js-rgb");
+		var output = document.getElementById("js-pixel-data");
+		var radioInputs = document.getElementById("js-sense-devicetype").querySelectorAll("input[type=\"radio\"]");
+
+		app.setAttribute("data-pixelData", JSON.stringify({
+			"pixels": [],
+			"realDevice": false
+		}));
+
+		for (var i=0; i<radioInputs.length; i++) {
+			radioInputs[i].onclick = function(e) {
+				var pixelData = JSON.parse(app.getAttribute("data-pixelData"));
+				if (e.target.id === "senseHat-device") {
+					pixelData.realDevice = true;
+				} else if (e.target.id === "senseHat-emulator") {
+					pixelData.realDevice = false;
+				}
+				app.setAttribute("data-pixelData", JSON.stringify(pixelData));
+
+				output.innerHTML = getSenseHatScript(JSON.parse(app.getAttribute("data-pixelData")));
+			} 
+		}
+
+		for (var i=0; i<64; i++) {
+			var newPixel = document.createElement("BUTTON");
+			newPixel.className = "pixel";
+			newPixel.setAttribute("data-index", i);
+			container.appendChild(newPixel);
+
+			var updatedPixels = JSON.parse(app.getAttribute("data-pixelData")).pixels;
+			updatedPixels.push("(0,0,0)");
+			app.setAttribute("data-pixelData", JSON.stringify({
+				"pixels": updatedPixels,
+				"realDevice": false
+			}));
+
+			newPixel.onclick = function (e) {
+				e.target.style.background = "rgb(" + inputRGB.value + ")";
+
+				var pixelData = JSON.parse(app.getAttribute("data-pixelData"));
+				pixelData.pixels[e.target.getAttribute("data-index")] = "(" + inputRGB.value + ")";
+				app.setAttribute("data-pixelData", JSON.stringify(pixelData));
+
+				output.innerHTML = getSenseHatScript(JSON.parse(app.getAttribute("data-pixelData")));
+			}
+		}
+		
+		output.innerHTML = getSenseHatScript(JSON.parse(app.getAttribute("data-pixelData")));
+	}
+
+	function getSenseHatScript(pixelData) {
+		var senseHatScript, pixels, fromSense;
+		fromSense = "sense_emu";
+		if (pixelData.realDevice) {
+			fromSense = "sense_hat";
+		}
+		pixels = JSON.stringify(pixelData.pixels).replace(/"/g, '');
+		senseHatScript = "from " + fromSense + " import SenseHat\n";
+		senseHatScript += "sense = SenseHat()\n";
+		senseHatScript += "pixels = " + pixels + "\n";
+		senseHatScript += "sense.set_pixels(pixels)";
+		return senseHatScript;
+	}
+
+	function updateColorPicker(picker) {
+		document.getElementById("js-rgb").value =
+        		Math.round(picker.rgb[0]) + ',' +
+        		Math.round(picker.rgb[1]) + ',' +
+        		Math.round(picker.rgb[2]);
+	}
+	</script>
+</body>
+</html>
